@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# オムロン環境センサーをスキャンし、見つけたら300秒ごとにconnectして
+# 環境センサーをスキャンし、見つけたら300秒ごとにconnectして
 # 最新データー(latest data)を取得し、Ambientに送信する
 # 1台(Single)のセンサー端末に対応
 
@@ -18,6 +18,12 @@ writeKey = 'writeKey'
 def _OMRON_UUID(val):
     return UUID('%08X-7700-46F4-AA96-D5E974E32A54' % (0x0C4C0000 + val))
 
+devs = {
+    'omron': {'desc': 'Short Local Name', 'value': 'Env', 'uuid': _OMRON_UUID(0x3001)},
+    'esp32': {'desc': 'Complete Local Name', 'value': 'AmbientEnv-01', 'uuid': 'b0c8c0fa-6d46-11e8-adc0-fa7ae01bbebc'}
+}
+target = 'esp32'
+
 Debugging = False
 def DBG(*args):
     if Debugging:
@@ -34,7 +40,7 @@ def MSG(*args):
 
 def timeoutRetry(addr):
     MSG('timer expired (%s)' % addr)
-    devThread = devs[addr]
+    devThread = scannedDevs[addr]
     devThread.forceDisconnect()
     MSG('Thread disconnected (%s)' % addr)
 
@@ -65,7 +71,7 @@ class EnvSensor(Thread, Peripheral):
                     pass
             MSG('connected to ', self.dev.addr)
             try:
-                latestDataRow = self.getCharacteristics(uuid=_OMRON_UUID(0x3001))[0]
+                latestDataRow = self.getCharacteristics(uuid=devs[target]['uuid'])[0]
                 dataRow = latestDataRow.read()
                 send2ambient(self.am, dataRow)
                 t.cancel()
@@ -83,7 +89,7 @@ class EnvSensor(Thread, Peripheral):
             self.disconnect()
         self.isConnected = False
 
-devs = {}
+scannedDevs = {}
 
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
@@ -92,17 +98,18 @@ class ScanDelegate(DefaultDelegate):
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if isNewDev:
             for (adtype, desc, value) in dev.getScanData():
-                if desc == 'Short Local Name' and value == 'Env':
-                    if dev.addr in devs.keys():
+                if desc == devs[target]['desc'] and value == devs[target]['value']:
+                    if dev.addr in scannedDevs.keys():
                         return
                     MSG('New %s %s' % (value, dev.addr))
                     devThread = EnvSensor(dev)
-                    devs[dev.addr] = devThread
+                    scannedDevs[dev.addr] = devThread
                     devThread.start()
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d',action='store_true', help='debug msg on')
+    parser.add_argument('-o',action='store_true', help='device is omron env sensor')
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -110,10 +117,14 @@ def main():
     Debugging = args.d
     bluepy.btle.Debugging = args.d
 
+    global target
+    if args.o:
+        target = 'omron'
+
     scanner = Scanner().withDelegate(ScanDelegate())
     while True:
         try:
-            scanner.scan(10.0) # スキャンする。デバイスを見つけた後の処理はScanDelegateに任せる
+            scanner.scan(5.0) # スキャンする。デバイスを見つけた後の処理はScanDelegateに任せる
         except BTLEException:
             MSG('BTLE Exception while scannning.')
 
