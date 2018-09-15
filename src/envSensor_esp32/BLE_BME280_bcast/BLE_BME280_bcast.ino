@@ -3,7 +3,7 @@
    Ported to Arduino ESP32 by pcbreflux
 */
 
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
 #include <M5Stack.h>
 #endif
 #include "BLEDevice.h"
@@ -17,7 +17,7 @@
 #define S_PERIOD     10  // Silent perild
 RTC_DATA_ATTR static uint8_t seq; // remember number of boots in RTC Memory
 
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
 #define SDA 21
 #define SCL 22
 #else
@@ -35,9 +35,9 @@ void setAdvData(BLEAdvertising *pAdvertising) {
     uint16_t press = (uint16_t)(data.pressure / 10);
 
     BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
-  
+
     oAdvertisementData.setFlags(0x06); // BR_EDR_NOT_SUPPORTED | LE General Discoverable Mode
-  
+
     std::string strServiceData = "";
     strServiceData += (char)0x17;   // 長さ
     strServiceData += (char)0xff;   // AD Type 0xFF: Manufacturer specific data
@@ -69,7 +69,7 @@ void setAdvData(BLEAdvertising *pAdvertising) {
 }
 
 void setup() {
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
     M5.begin();
     dacWrite(25, 0); // Speaker OFF
 #endif
@@ -87,7 +87,7 @@ void setup() {
 
     BLEAdvertising *pAdvertising = pServer->getAdvertising(); // アドバタイズオブジェクトを取得
     setAdvData(pAdvertising);                          // アドバタイジングデーターをセット
-  
+
     pAdvertising->start();                             // アドバタイズ起動
     Serial.println("Advertizing started...");
     delay(T_PERIOD * 1000);
@@ -102,4 +102,3 @@ void setup() {
 
 void loop() {
 }
-

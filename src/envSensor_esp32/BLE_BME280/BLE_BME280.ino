@@ -5,7 +5,7 @@
     オムロン2JCIE_BL01のGATTに合わせて温度、湿度、気圧データーを送る
     readがあったらBME280を読み、温度、湿度、気圧データーをsetValue()するCallbackを設定する
 */
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
 #include <M5Stack.h>
 #endif
 #include <BLEDevice.h>
@@ -22,7 +22,7 @@
 #define SENSOR_UUID     "b0c8be70-6d46-11e8-adc0-fa7ae01bbebc"
 #define LATESTDATA_UUID "b0c8c0fa-6d46-11e8-adc0-fa7ae01bbebc"
 
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
 #define SDA 21
 #define SCL 22
 #else
@@ -87,7 +87,7 @@ class dataCb: public BLECharacteristicCallbacks {
 };
 
 void setup() {
-#ifdef ARDUINO_M5Stack-Core-ESP32
+#ifdef ARDUINO_M5Stack_Core_ESP32
     M5.begin();
     dacWrite(25, 0); // Speaker OFF
 #endif
@@ -116,4 +116,3 @@ void setup() {
 
 void loop() {
 }
-
