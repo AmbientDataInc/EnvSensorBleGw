@@ -13,7 +13,7 @@ int8_t user_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *reg_data, uint16
     Wire.beginTransmission(dev_id);
     Wire.write(reg_addr);
     Wire.endTransmission();
-    Wire.requestFrom(dev_id, len);
+    Wire.requestFrom(dev_id, (uint8_t)len);
     while(Wire.available()){
         reg_data[i] = Wire.read();
         i++;
