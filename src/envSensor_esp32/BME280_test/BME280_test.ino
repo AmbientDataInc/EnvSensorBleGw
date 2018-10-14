@@ -16,16 +16,15 @@
 #endif
 
 BME280 bme280(BME280_I2C_ADDR_PRIM);
-struct bme280_data data;
 
 void setup(){
 #ifdef ARDUINO_M5Stack_Core_ESP32
     M5.begin();
     dacWrite(25, 0); // Speaker OFF
 #endif
+    Wire.begin(SDA, SCL, 400000);
     pinMode(SDA, INPUT_PULLUP); // SDAピンのプルアップの指定
     pinMode(SCL, INPUT_PULLUP); // SCLピンのプルアップの指定
-    Wire.begin(SDA, SCL);
 
     Serial.begin(115200);
 
@@ -38,6 +37,8 @@ void setup(){
 }
 
 void loop() {
+    struct bme280_data data;
+
     bme280.get_sensor_data(&data);
     Serial.printf("temp: %.2f, humid: %.2f, press: %.1f\r\n", data.temperature, data.humidity, data.pressure / 100);
 
