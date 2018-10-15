@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-# Limited Broadcasterモードの環境センサーを
+# 環境センサーをLimited Broadcasterモードにして
+# 10秒アドバタイズ、290秒休み(開発中は50秒休み)に設定
 # 常時スキャンし、データーを取得したらAmbientに送信する
 # 1台(Single)のセンサー端末に対応
 
@@ -14,7 +15,7 @@ import ambient
 channelID = 100
 writeKey = 'writeKey'
 am = ambient.Ambient(channelID, writeKey)
-companyID = '0000'
+companyID = 'ffff'
 
 Debugging = False
 def DBG(*args):
@@ -31,10 +32,16 @@ def MSG(*args):
         sys.stdout.flush()
 
 def send2ambient(dataRow):
-    (temp, humid, light, uv, press, noise, accelX, accelY, accelZ, batt) = struct.unpack('<hhhhhhhhhB', bytes.fromhex(dataRow))
-    MSG(temp / 100, humid / 100, light, uv / 100, press / 10, noise / 100, (batt + 100) / 100)
-    ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10, 'd4': (batt + 100) / 100, 'd5': light, 'd6': noise / 100})
-    MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    if companyID == 'ffff':
+        (temp, humid, press) = struct.unpack('<hhh', bytes.fromhex(dataRow))
+        MSG(temp / 100, humid / 100, press / 10)
+        ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10})
+        MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    else:
+        (temp, humid, light, uv, press, noise, accelX, accelY, accelZ, batt) = struct.unpack('<hhhhhhhhhB', bytes.fromhex(dataRow))
+        MSG(temp / 100, humid / 100, light, uv / 100, press / 10, noise / 100, (batt + 100) / 100)
+        ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10, 'd4': (batt + 100) / 100, 'd5': light, 'd6': noise / 100})
+        MSG('sent to Ambient (ret = %d)' % ret.status_code)
 
 class ScanDelegate(DefaultDelegate):
     def __init__(self):
@@ -43,14 +50,14 @@ class ScanDelegate(DefaultDelegate):
         self.lasttime = datetime.fromtimestamp(0)
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
-            if isNewDev or isNewData:
-                for (adtype, desc, value) in dev.getScanData():
-                    if desc == 'Manufacturer' and value[0:4] == companyID:
-                        delta = datetime.now() - self.lasttime
-                        if value[4:6] != self.lastseq and delta.total_seconds() > 11: # アドバタイズする10秒の間に測定が実行されseqが加算されたものは捨てる
-                            self.lastseq = value[4:6]
-                            self.lasttime = datetime.now()
-                            send2ambient(value[6:])
+        if isNewDev or isNewData:
+            for (adtype, desc, value) in dev.getScanData():
+                if desc == 'Manufacturer' and value[0:4] == companyID:
+                    delta = datetime.now() - self.lasttime
+                    if value[4:6] != self.lastseq and delta.total_seconds() > 11: # アドバタイズする10秒の間に測定が実行されseqが加算されたものは捨てる
+                        self.lastseq = value[4:6]
+                        self.lasttime = datetime.now()
+                        send2ambient(value[6:])
 
 def main():
     parser = argparse.ArgumentParser()
