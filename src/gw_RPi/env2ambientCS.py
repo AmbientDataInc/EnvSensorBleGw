@@ -45,10 +45,16 @@ def timeoutRetry(addr):
     MSG('Thread disconnected (%s)' % addr)
 
 def send2ambient(am, dataRow):
-    (seq, temp, humid, light, uv, press, noise, discom, heat, batt) = struct.unpack('<BhhhhhhhhH', dataRow)
-    MSG(seq, temp / 100, humid / 100, light, uv / 100, press / 10, noise / 100, discom / 100, heat / 100, batt / 1000)
-    ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10, 'd4': batt / 1000, 'd5': light, 'd6': noise / 100})
-    MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    if target == 'esp32':
+        (seq, temp, humid, press) = struct.unpack('<Bhhh', dataRow)
+        MSG(seq, temp / 100, humid / 100, press / 10)
+        ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10})
+        MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    else:
+        (seq, temp, humid, light, uv, press, noise, discom, heat, batt) = struct.unpack('<BhhhhhhhhH', dataRow)
+        MSG(seq, temp / 100, humid / 100, light, uv / 100, press / 10, noise / 100, discom / 100, heat / 100, batt / 1000)
+        ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10, 'd4': batt / 1000, 'd5': light, 'd6': noise / 100})
+        MSG('sent to Ambient (ret = %d)' % ret.status_code)
 
 class EnvSensor(Thread, Peripheral):
     def __init__(self, dev):
@@ -97,14 +103,14 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if isNewDev:
-            for (adtype, desc, value) in dev.getScanData():
-                if desc == devs[target]['desc'] and value == devs[target]['value']:
-                    if dev.addr in scannedDevs.keys():
+            for (adtype, desc, value) in dev.getScanData():  # スキャンデーターを調べる
+                if desc == devs[target]['desc'] and value == devs[target]['value']:  # 対象を見つけたら
+                    if dev.addr in scannedDevs.keys():  # すでに見つけていたらスキップ
                         return
                     MSG('New %s %s' % (value, dev.addr))
-                    devThread = EnvSensor(dev)
+                    devThread = EnvSensor(dev)  # EnvSensorクラスのインスタンスを生成
                     scannedDevs[dev.addr] = devThread
-                    devThread.start()
+                    devThread.start()  # スレッドを起動
 
 def main():
     parser = argparse.ArgumentParser()
