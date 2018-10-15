@@ -67,7 +67,7 @@ uint8_t seq = 0;
 
 class dataCb: public BLECharacteristicCallbacks {
     void onRead(BLECharacteristic *pChar) {
-        uint8_t buf[19];
+        uint8_t buf[7];
 
         bme280.get_sensor_data(&data);　　　　　　　// センサーを読む
         Serial.printf("temp: %f, humid: %f, press: %f\r\n", data.temperature, data.humidity, data.pressure / 100);
@@ -80,8 +80,8 @@ class dataCb: public BLECharacteristicCallbacks {
         buf[2] = (uint8_t)((temp >> 8) & 0xff);   // 温度の上位バイトをセット
         buf[3] = (uint8_t)(humid & 0xff);         // 湿度の下位バイトをセット
         buf[4] = (uint8_t)((humid >> 8) & 0xff);  // 湿度の上位バイトをセット
-        buf[9] = (uint8_t)(press & 0xff);         // 気圧の下位バイトをセット
-        buf[10] = (uint8_t)((press >> 8) & 0xff); // 気圧の上位バイトをセット
+        buf[5] = (uint8_t)(press & 0xff);         // 気圧の下位バイトをセット
+        buf[6] = (uint8_t)((press >> 8) & 0xff); // 気圧の上位バイトをセット
         pChar->setValue(buf, sizeof buf);         // データーを書き込み
     }
 };
