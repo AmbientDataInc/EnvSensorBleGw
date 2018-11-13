@@ -18,9 +18,14 @@ writeKey = 'writeKey'
 def _OMRON_UUID(val):
     return UUID('%08X-7700-46F4-AA96-D5E974E32A54' % (0x0C4C0000 + val))
 
+def _MICROBIT_UUID(val):
+    return UUID('%08X-251D-470A-A062-FA1922DFA9A8' % (0xE95D0000 + val))
+
+
 devs = {
-    'omron': {'desc': 'Short Local Name', 'value': 'Env', 'uuid': _OMRON_UUID(0x3001)},
-    'esp32': {'desc': 'Complete Local Name', 'value': 'AmbientEnv-01', 'uuid': 'b0c8c0fa-6d46-11e8-adc0-fa7ae01bbebc'}
+    'omron':    {'desc': 'Short Local Name',    'value': 'Env',           'match': 'exact',   'uuid': _OMRON_UUID(0x3001)},
+    'microbit': {'desc': 'Complete Local Name', 'value': 'BBC micro:bit', 'match': 'forward', 'uuid': _MICROBIT_UUID(0x9250)},
+    'esp32':    {'desc': 'Complete Local Name', 'value': 'AmbientEnv-01', 'match': 'exact',   'uuid': 'b0c8c0fa-6d46-11e8-adc0-fa7ae01bbebc'}
 }
 target = 'esp32'
 
@@ -49,12 +54,15 @@ def send2ambient(am, dataRow):
         (seq, temp, humid, press) = struct.unpack('<Bhhh', dataRow)
         MSG(seq, temp / 100, humid / 100, press / 10)
         ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10})
-        MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    elif target == 'microbit':
+        temp = struct.unpack('<b', dataRow)
+        print({'d1': temp[0]})
+        ret = am.send({'d1': temp[0]})
     else:
         (seq, temp, humid, light, uv, press, noise, discom, heat, batt) = struct.unpack('<BhhhhhhhhH', dataRow)
         MSG(seq, temp / 100, humid / 100, light, uv / 100, press / 10, noise / 100, discom / 100, heat / 100, batt / 1000)
         ret = am.send({'d1': temp / 100, 'd2': humid / 100, 'd3': press / 10, 'd4': batt / 1000, 'd5': light, 'd6': noise / 100})
-        MSG('sent to Ambient (ret = %d)' % ret.status_code)
+    MSG('sent to Ambient (ret = %d)' % ret.status_code)
 
 class EnvSensor(Thread, Peripheral):
     def __init__(self, dev):
@@ -74,7 +82,10 @@ class EnvSensor(Thread, Peripheral):
                     self.connect(self.dev)
                     self.isConnected = True
                 except BTLEException as e:
-                    pass
+                    MSG('BTLE Exception while connect on ', self.dev.addr)
+                    MSG('type:' + str(type(e)))
+                    MSG('args:' + str(e.args))
+                    # pass
             MSG('connected to ', self.dev.addr)
             try:
                 latestDataRow = self.getCharacteristics(uuid=devs[target]['uuid'])[0]
@@ -104,7 +115,8 @@ class ScanDelegate(DefaultDelegate):
     def handleDiscovery(self, dev, isNewDev, isNewData):
         if isNewDev:
             for (adtype, desc, value) in dev.getScanData():  # スキャンデーターを調べる
-                if desc == devs[target]['desc'] and value == devs[target]['value']:  # 対象を見つけたら
+                if devs[target]['match'] == 'exact' and desc == devs[target]['desc'] and value == devs[target]['value'] \
+                or devs[target]['match'] == 'forward' and desc == devs[target]['desc'] and value.startswith(devs[target]['value']):  # 対象を見つけたら
                     if dev.addr in scannedDevs.keys():  # すでに見つけていたらスキップ
                         return
                     MSG('New %s %s' % (value, dev.addr))
@@ -116,6 +128,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d',action='store_true', help='debug msg on')
     parser.add_argument('-o',action='store_true', help='device is omron env sensor')
+    parser.add_argument('-b',action='store_true', help='device is BBC micro:bit')
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -126,6 +139,8 @@ def main():
     global target
     if args.o:
         target = 'omron'
+    elif args.b:
+        target = 'microbit'
 
     scanner = Scanner().withDelegate(ScanDelegate())
     while True:
